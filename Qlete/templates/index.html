@@ -1,0 +1,411 @@
+<!doctype html>
+<html lang="pt-BR">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Gerador de Quizzes Pessoal</title>
+		<style>
+			:root {
+				--bg-primary: #f4f7f6;
+				--bg-card: #ffffff;
+				--text-main: #2d3748;
+				--text-muted: #718096;
+				--primary: #4f46e5;
+				--primary-hover: #4338ca;
+				--success: #10b981;
+				--danger: #ef4444;
+				--border: #e2e8f0;
+			}
+
+			* {
+				box-sizing: border-box;
+				margin: 0;
+				padding: 0;
+				font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+			}
+
+			body {
+				background-color: var(--bg-primary);
+				color: var(--text-main);
+				padding: 2rem 1rem;
+				display: flex;
+				justify-content: center;
+			}
+
+			.container {
+				width: 100%;
+				max-width: 800px;
+			}
+
+			header {
+				text-align: center;
+				margin-bottom: 2rem;
+			}
+
+			header h1 {
+				color: var(--primary);
+				margin-bottom: 0.5rem;
+			}
+
+			.card {
+				background: var(--bg-card);
+				border-radius: 12px;
+				box-shadow:
+					0 4px 6px -1px rgba(0, 0, 0, 0.1),
+					0 2px 4px -1px rgba(0, 0, 0, 0.06);
+				padding: 2rem;
+				margin-bottom: 1.5rem;
+			}
+
+			/* Lista de Quizzes */
+			.quiz-grid {
+				display: grid;
+				grid-template-columns: 1fr 1fr;
+				gap: 1rem;
+				margin-top: 1rem;
+			}
+
+			@media (max-width: 600px) {
+				.quiz-grid {
+					grid-template-columns: 1fr;
+				}
+			}
+
+			.quiz-item {
+				border: 2px solid var(--border);
+				border-radius: 8px;
+				padding: 1rem;
+				cursor: pointer;
+				transition: all 0.2s ease;
+			}
+
+			.quiz-item:hover {
+				border-color: var(--primary);
+				transform: translateY(-2px);
+			}
+
+			.badge {
+				display: inline-block;
+				padding: 0.25rem 0.5rem;
+				font-size: 0.75rem;
+				font-weight: bold;
+				border-radius: 4px;
+				margin-right: 0.5rem;
+				background: #e0e7ff;
+				color: #4338ca;
+			}
+
+			.badge.dificuldade {
+				background: #fef3c7;
+				color: #d97706;
+			}
+
+			/* Área do Quiz */
+			.hidden {
+				display: none !important;
+			}
+
+			.quiz-header {
+				display: flex;
+				justify-content: space-between;
+				align-items: center;
+				margin-bottom: 1.5rem;
+				border-bottom: 2px solid var(--border);
+				padding-bottom: 1rem;
+			}
+
+			.question-img {
+				max-width: 100%;
+				max-height: 300px;
+				display: block;
+				margin: 1rem auto;
+				border-radius: 6px;
+				object-fit: contain;
+			}
+
+			.options-list {
+				display: flex;
+				flex-direction: column;
+				gap: 0.75rem;
+				margin: 1.5rem 0;
+			}
+
+			.option-btn {
+				background: var(--bg-card);
+				border: 2px solid var(--border);
+				padding: 1rem;
+				border-radius: 8px;
+				text-align: left;
+				font-size: 1rem;
+				cursor: pointer;
+				transition: background 0.2s;
+				width: 100%;
+			}
+
+			.option-btn:hover:not(:disabled) {
+				background: #f8fafc;
+				border-color: var(--text-muted);
+			}
+
+			.option-btn.correct {
+				background: #d1fae5;
+				border-color: var(--success);
+				color: #065f46;
+				font-weight: 600;
+			}
+
+			.option-btn.wrong {
+				background: #fee2e2;
+				border-color: var(--danger);
+				color: #991b1b;
+			}
+
+			.btn {
+				background: var(--primary);
+				color: white;
+				border: none;
+				padding: 0.75rem 1.5rem;
+				border-radius: 6px;
+				font-size: 1rem;
+				cursor: pointer;
+				font-weight: 600;
+			}
+
+			.btn:hover {
+				background: var(--primary-hover);
+			}
+
+			.btn-secondary {
+				background: transparent;
+				color: var(--text-muted);
+				border: 1px solid var(--border);
+			}
+			.btn-secondary:hover {
+				background: #f1f5f9;
+			}
+
+			.actions {
+				display: flex;
+				justify-content: space-between;
+				align-items: center;
+			}
+
+			/* Resultado */
+			.score-text {
+				font-size: 1.5rem;
+				text-align: center;
+				margin: 1.5rem 0;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="container">
+			<header>
+				<h1>Meus Estudos</h1>
+				<p>
+					Selecione ou adicione arquivos JSON na pasta do sistema para praticar.
+				</p>
+			</header>
+
+			<div id="screen-selection" class="card">
+				<h2>Quizzes Disponíveis</h2>
+				<div id="quiz-list" class="quiz-grid">
+					<p>Carregando questionários...</p>
+				</div>
+			</div>
+
+			<div id="screen-quiz" class="card hidden">
+				<div class="quiz-header">
+					<h3 id="quiz-title-active">Nome do Quiz</h3>
+					<span id="question-counter">Pergunta 1 de X</span>
+				</div>
+
+				<div id="question-container">
+					<h2 id="question-text" style="margin-bottom: 1rem">
+						Texto da pergunta aqui?
+					</h2>
+					<img
+						id="question-image"
+						class="question-img hidden"
+						src=""
+						alt="Imagem auxiliar"
+					/>
+
+					<div id="options-box" class="options-list"></div>
+				</div>
+
+				<div class="actions">
+					<button
+						id="btn-back"
+						class="btn btn-secondary"
+						onclick="showSelectionScreen()"
+					>
+						Voltar
+					</button>
+					<button id="btn-next" class="btn hidden" onclick="nextQuestion()">
+						Próxima Pergunta
+					</button>
+				</div>
+			</div>
+
+			<div id="screen-results" class="card hidden">
+				<h2>Quiz Concluído!</h2>
+				<div class="score-text" id="score-display">Você acertou 0 de 0.</div>
+				<center>
+					<button class="btn" onclick="showSelectionScreen()">
+						Voltar ao Início
+					</button>
+				</center>
+			</div>
+		</div>
+
+		<script>
+			let currentQuizData = null;
+			let currentQuestionIndex = 0;
+			let score = 0;
+			let answered = false;
+
+			// Inicializa carregando a lista de quizzes
+			document.addEventListener("DOMContentLoaded", loadQuizList);
+
+			async function loadQuizList() {
+				try {
+					const response = await fetch("/api/quizzes");
+					const quizzes = await response.json();
+					const listContainer = document.getElementById("quiz-list");
+
+					if (quizzes.length === 0) {
+						listContainer.innerHTML =
+							'<p>Nenhum quiz encontrado na pasta "quizes/". Adicione um arquivo .json lá!</p>';
+						return;
+					}
+
+					listContainer.innerHTML = "";
+					quizzes.forEach((quiz) => {
+						const div = document.createElement("div");
+						div.className = "quiz-item";
+						div.onclick = () => startQuiz(quiz.id);
+						div.innerHTML = `
+                    <h3>${quiz.titulo}</h3>
+                    <p style="color: var(--text-muted); font-size: 0.9rem; margin: 0.5rem 0;">Tema: ${quiz.tema}</p>
+                    <div>
+                        <span class="badge">${quiz.ano}</span>
+                        <span class="badge dificuldade">${quiz.dificuldade}</span>
+                    </div>
+                `;
+						listContainer.appendChild(div);
+					});
+				} catch (error) {
+					console.error("Erro ao buscar lista de quizzes:", error);
+				}
+			}
+
+			async function startQuiz(quizId) {
+				try {
+					const response = await fetch(`/api/quiz/${quizId}`);
+					currentQuizData = await response.json();
+
+					currentQuestionIndex = 0;
+					score = 0;
+
+					document.getElementById("quiz-title-active").innerText =
+						currentQuizData.metadata.titulo;
+					document.getElementById("screen-selection").classList.add("hidden");
+					document.getElementById("screen-results").classList.add("hidden");
+					document.getElementById("screen-quiz").classList.remove("hidden");
+
+					showQuestion();
+				} catch (error) {
+					alert("Erro ao carregar os dados deste quiz.");
+				}
+			}
+
+			function showQuestion() {
+				answered = false;
+				document.getElementById("btn-next").classList.add("hidden");
+
+				const currentQuestion = currentQuizData.perguntas[currentQuestionIndex];
+				const totalQuestions = currentQuizData.perguntas.length;
+
+				document.getElementById("question-counter").innerText =
+					`Pergunta ${currentQuestionIndex + 1} de ${totalQuestions}`;
+				document.getElementById("question-text").innerText =
+					currentQuestion.pergunta;
+
+				// Trata imagem se houver
+				const imgElement = document.getElementById("question-image");
+				if (
+					currentQuestion.imagem_url &&
+					currentQuestion.imagem_url.trim() !== ""
+				) {
+					imgElement.src = currentQuestion.imagem_url;
+					imgElement.classList.remove("hidden");
+				} else {
+					imgElement.classList.add("hidden");
+					imgElement.src = "";
+				}
+
+				// Renderiza alternativas
+				const optionsBox = document.getElementById("options-box");
+				optionsBox.innerHTML = "";
+
+				currentQuestion.alternativas.forEach((opcao, index) => {
+					const button = document.createElement("button");
+					button.className = "option-btn";
+					button.innerText = opcao;
+					button.onclick = () =>
+						selectOption(button, index, currentQuestion.correta);
+					optionsBox.appendChild(button);
+				});
+			}
+
+			function selectOption(selectedButton, indexSelected, indexCorrect) {
+				if (answered) return; // Evita multiplos cliques
+				answered = true;
+
+				const options = document.getElementById("options-box").children;
+
+				if (indexSelected === indexCorrect) {
+					selectedButton.classList.add("correct");
+					score++;
+				} else {
+					selectedButton.classList.add("wrong");
+					// Mostra qual era a correta
+					options[indexCorrect].classList.add("correct");
+				}
+
+				// Desabilita todos os botões após responder
+				for (let btn of options) {
+					btn.disabled = true;
+				}
+
+				document.getElementById("btn-next").classList.remove("hidden");
+			}
+
+			function nextQuestion() {
+				currentQuestionIndex++;
+				if (currentQuestionIndex < currentQuizData.perguntas.length) {
+					showQuestion();
+				} else {
+					showResults();
+				}
+			}
+
+			function showResults() {
+				document.getElementById("screen-quiz").classList.add("hidden");
+				document.getElementById("screen-results").classList.remove("hidden");
+
+				const total = currentQuizData.perguntas.length;
+				document.getElementById("score-display").innerText =
+					`Você acertou ${score} de ${total} perguntas! (${Math.round((score / total) * 100)}%)`;
+			}
+
+			function showSelectionScreen() {
+				document.getElementById("screen-quiz").classList.add("hidden");
+				document.getElementById("screen-results").classList.add("hidden");
+				document.getElementById("screen-selection").classList.remove("hidden");
+				loadQuizList();
+			}
+		</script>
+	</body>
+</html>
