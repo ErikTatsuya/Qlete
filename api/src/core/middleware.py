@@ -16,6 +16,6 @@ def configure_middleware(app: FastAPI) -> None:
         allow_origins=FRONTEND_ORIGINS,
         allow_origin_regex=LOCAL_ORIGIN_REGEX,
         allow_credentials=True,
-        allow_methods=["GET", "POST", "OPTIONS"],
-        allow_headers=["Authorization", "Content-Type"],
+        allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+        allow_headers=["Authorization", "Content-Type", "Cookie"],
     )

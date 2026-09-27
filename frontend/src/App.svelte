@@ -15,11 +15,19 @@
   let description = $state('');
   let adminUser = $state('');
   let adminPassword = $state('');
+  let adminSession = $state(null);
+  let adminTasks = $state([]);
+  let adminTaskTitle = $state('');
+  let adminTaskDescription = $state('');
+  let adminTaskSaving = $state(false);
   let questions = $state([emptyQuestion()]);
   let answerResults = $state({});
   let answering = $state({});
 
-  onMount(loadQuizzes);
+  onMount(async () => {
+    await loadQuizzes();
+    await checkAdminSession();
+  });
 
   async function loadQuizzes() {
     loading = true;
@@ -32,6 +40,106 @@
       error = 'Não foi possível conectar à API. Confira se ela está rodando.';
     } finally {
       loading = false;
+    }
+  }
+
+  async function checkAdminSession() {
+    try {
+      const response = await fetch(`${apiUrl}/admin/me`, { credentials: 'include' });
+      if (!response.ok) {
+        adminSession = null;
+        return;
+      }
+      adminSession = await response.json();
+      await loadAdminTasks();
+    } catch {
+      adminSession = null;
+    }
+  }
+
+  async function loginAdmin(event) {
+    event.preventDefault();
+    error = '';
+
+    try {
+      const response = await fetch(`${apiUrl}/admin/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ username: adminUser, password: adminPassword }),
+      });
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload.detail || 'Usuário ou senha do admin incorretos.');
+      }
+
+      adminSession = await response.json();
+      adminUser = '';
+      adminPassword = '';
+      await loadAdminTasks();
+    } catch (cause) {
+      error = cause instanceof Error ? cause.message : 'Não foi possível entrar no painel admin.';
+    }
+  }
+
+  async function logoutAdmin() {
+    try {
+      await fetch(`${apiUrl}/admin/logout`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+    } finally {
+      adminSession = null;
+      adminTasks = [];
+      error = '';
+    }
+  }
+
+  async function loadAdminTasks() {
+    if (!adminSession) return;
+
+    try {
+      const response = await fetch(`${apiUrl}/admin/tasks`, {
+        method: 'GET',
+        credentials: 'include',
+      });
+      if (!response.ok) throw new Error('Não foi possível carregar as tarefas do admin.');
+      adminTasks = await response.json();
+    } catch (cause) {
+      error = cause instanceof Error ? cause.message : 'Erro ao carregar tarefas do admin.';
+    }
+  }
+
+  async function createAdminTask(event) {
+    event.preventDefault();
+    if (!adminSession || !adminTaskTitle.trim()) return;
+
+    adminTaskSaving = true;
+    try {
+      const response = await fetch(`${apiUrl}/admin/tasks`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          title: adminTaskTitle.trim(),
+          description: adminTaskDescription.trim() || null,
+          completed: false,
+        }),
+      });
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload.detail || 'Não foi possível criar a tarefa.');
+      }
+
+      adminTaskTitle = '';
+      adminTaskDescription = '';
+      await loadAdminTasks();
+    } catch (cause) {
+      error = cause instanceof Error ? cause.message : 'Não foi possível criar a tarefa.';
+    } finally {
+      adminTaskSaving = false;
     }
   }
 
@@ -111,7 +219,45 @@
         <span aria-hidden="true">{formOpen ? '×' : '+'}</span>
         {formOpen ? 'Fechar' : 'Adicionar quiz'}
       </button>
+
+      {#if adminSession}
+        <div class="admin-badge">
+          <span>Admin: {adminSession.username}</span>
+          <button class="text-action" type="button" onclick={logoutAdmin}>Sair</button>
+        </div>
+      {:else}
+        <form class="admin-login-inline" onsubmit={loginAdmin}>
+          <input bind:value={adminUser} placeholder="Admin" aria-label="Usuário admin" required />
+          <input bind:value={adminPassword} type="password" placeholder="Senha" aria-label="Senha do admin" required />
+          <button class="text-action" type="submit">Entrar</button>
+        </form>
+      {/if}
     </header>
+
+    {#if adminSession}
+      <section class="admin-panel">
+        <h2>Painel admin</h2>
+        <form class="admin-task-form" onsubmit={createAdminTask}>
+          <input bind:value={adminTaskTitle} placeholder="Título da tarefa" required />
+          <input bind:value={adminTaskDescription} placeholder="Descrição (opcional)" />
+          <button class="submit-button" type="submit" disabled={adminTaskSaving}>{adminTaskSaving ? 'Salvando...' : 'Criar tarefa'}</button>
+        </form>
+
+        <div class="admin-task-list">
+          {#if adminTasks.length === 0}
+            <p>Nenhuma tarefa cadastrada.</p>
+          {:else}
+            {#each adminTasks as task (task.id)}
+              <div class="admin-task-item">
+                <strong>{task.title}</strong>
+                {#if task.description}<small>{task.description}</small>{/if}
+                <span class:done={task.completed}>{task.completed ? 'Concluída' : 'Pendente'}</span>
+              </div>
+            {/each}
+          {/if}
+        </div>
+      </section>
+    {/if}
 
     {#if formOpen}
       <section class="composer" aria-labelledby="composer-title">

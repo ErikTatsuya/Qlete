@@ -44,3 +44,35 @@ class AnswerResult(BaseModel):
     selected_alternative: int
     correct_alternative: int
     is_correct: bool
+
+
+class AdminLogin(BaseModel):
+    username: str
+    password: str
+
+
+class AdminSession(BaseModel):
+    username: str
+
+
+class TaskCreate(BaseModel):
+    title: QuizTitle
+    description: str | None = None
+    completed: bool = False
+
+
+class TaskRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    title: str
+    description: str | None
+    completed: bool
+    created_at: str
+    updated_at: str
+
+
+class TaskUpdate(BaseModel):
+    title: QuizTitle | None = None
+    description: str | None = None
+    completed: bool | None = None
