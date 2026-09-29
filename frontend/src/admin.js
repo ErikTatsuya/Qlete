@@ -1,11 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://127.0.0.1:8000' : '');
-
-function getCookie(name) {
-  const value = `; ${document.cookie}`;
-  const parts = value.split(`; ${name}=`);
-  if (parts.length === 2) return decodeURIComponent(parts.pop().split(';').shift());
-  return '';
-}
+const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '');
 
 export async function loginAdmin(username, password) {
   const response = await fetch(`${API_BASE}/admin/login`, {
@@ -31,9 +24,6 @@ export async function logoutAdmin() {
 }
 
 export async function getAdminSession() {
-  const username = getCookie('admin_user');
-  if (!username) return null;
-
   try {
     const response = await fetch(`${API_BASE}/admin/me`, {
       method: 'GET',

@@ -1,4 +1,5 @@
 import os
+import secrets
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -26,10 +27,14 @@ def async_database_url(database_url: str | None) -> str | None:
 
 
 DATABASE_URL = async_database_url(os.getenv("DATABASE_URL"))
+APP_ENV = os.getenv("APP_ENV", "production").strip().lower()
 ADMIN_USER = os.getenv("ADMIN_USER")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
-ADMIN_SESSION_SECRET = os.getenv("ADMIN_SESSION_SECRET", "qlete-local-admin-secret-change-me")
+ADMIN_SESSION_SECRET = os.getenv("ADMIN_SESSION_SECRET") or secrets.token_urlsafe(32)
 ADMIN_SESSION_TTL_SECONDS = int(os.getenv("ADMIN_SESSION_TTL_SECONDS", "86400"))
+ADMIN_COOKIE_SECURE = os.getenv(
+	"ADMIN_COOKIE_SECURE", "true" if APP_ENV == "production" else "false"
+).lower() == "true"
 FRONTEND_ORIGINS = [
 	origin.strip().rstrip("/")
 	for origin in os.getenv("FRONTEND_ORIGINS", "").split(",")

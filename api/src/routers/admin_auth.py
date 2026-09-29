@@ -1,16 +1,15 @@
-from datetime import datetime, timedelta, timezone
-
 from fastapi import APIRouter, HTTPException, Request, Response, status
 from hmac import compare_digest
 
-from src.core.config import ADMIN_SESSION_TTL_SECONDS, ADMIN_PASSWORD, ADMIN_USER
+from src.core.admin_tokens import create_admin_token, decode_admin_token
+from src.core.config import ADMIN_COOKIE_SECURE, ADMIN_PASSWORD, ADMIN_SESSION_TTL_SECONDS, ADMIN_USER
 from src.schemas import AdminLogin, AdminSession
 
 router = APIRouter(prefix="/admin", tags=["admin-auth"])
 
 
 @router.post("/login")
-async def login_admin(payload: AdminLogin, response: Response):
+async def login_admin(payload: AdminLogin, request: Request, response: Response):
     if not ADMIN_USER or not ADMIN_PASSWORD:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -25,12 +24,13 @@ async def login_admin(payload: AdminLogin, response: Response):
             detail="Usuário ou senha incorretos.",
         )
 
+    cookie_secure = ADMIN_COOKIE_SECURE or request.url.scheme == "https"
     response.set_cookie(
-        key="admin_user",
-        value=payload.username,
+        key="admin_token",
+        value=create_admin_token(payload.username),
         httponly=True,
-        samesite="lax",
-        secure=False,
+        samesite="none" if cookie_secure else "lax",
+        secure=cookie_secure,
         max_age=ADMIN_SESSION_TTL_SECONDS,
         path="/",
     )
@@ -39,13 +39,20 @@ async def login_admin(payload: AdminLogin, response: Response):
 
 @router.post("/logout")
 async def logout_admin(response: Response):
-    response.delete_cookie(key="admin_user", path="/")
+    response.delete_cookie(key="admin_token", path="/")
     return {"status": "logged_out"}
 
 
 @router.get("/me", response_model=AdminSession)
 async def get_admin_session(request: Request):
-    username = request.cookies.get("admin_user")
-    if not username:
+    if not ADMIN_USER or not ADMIN_PASSWORD:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Credenciais de administrador não configuradas.",
+        )
+
+    token = request.cookies.get("admin_token")
+    username = decode_admin_token(token) if token else None
+    if not username or not compare_digest(username, ADMIN_USER):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Sem sessão ativa.")
     return AdminSession(username=username)

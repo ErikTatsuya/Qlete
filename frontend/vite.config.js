@@ -10,6 +10,7 @@ export default defineConfig(({ mode }) => {
     plugins: [svelte(), tailwindcss()],
     server: {
       proxy: {
+        '/admin': { target: apiTarget, changeOrigin: true },
         '/api': { target: apiTarget, changeOrigin: true },
         '/health': { target: apiTarget, changeOrigin: true },
       },

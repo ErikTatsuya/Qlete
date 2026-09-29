@@ -3,7 +3,7 @@ from typing import Annotated
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
 
-NonEmptyText = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
+NonEmptyText = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=2000)]
 QuizTitle = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)]
 
 
@@ -15,7 +15,7 @@ class QuestionCreate(BaseModel):
 
 class QuizCreate(BaseModel):
     title: QuizTitle
-    description: str | None = None
+    description: str | None = Field(default=None, max_length=2000)
     questions: list[QuestionCreate] = Field(min_length=1, max_length=10)
 
 
@@ -36,6 +36,14 @@ class QuizRead(BaseModel):
     questions: list[QuestionRead]
 
 
+class QuestionAdminRead(QuestionRead):
+    correct_alternative: int
+
+
+class QuizAdminRead(QuizRead):
+    questions: list[QuestionAdminRead]
+
+
 class AnswerSubmission(BaseModel):
     alternative: int = Field(ge=1, le=4)
 
@@ -47,8 +55,8 @@ class AnswerResult(BaseModel):
 
 
 class AdminLogin(BaseModel):
-    username: str
-    password: str
+    username: str = Field(min_length=1, max_length=200)
+    password: str = Field(min_length=1, max_length=1024)
 
 
 class AdminSession(BaseModel):
@@ -57,7 +65,7 @@ class AdminSession(BaseModel):
 
 class TaskCreate(BaseModel):
     title: QuizTitle
-    description: str | None = None
+    description: str | None = Field(default=None, max_length=2000)
     completed: bool = False
 
 
@@ -74,5 +82,5 @@ class TaskRead(BaseModel):
 
 class TaskUpdate(BaseModel):
     title: QuizTitle | None = None
-    description: str | None = None
+    description: str | None = Field(default=None, max_length=2000)
     completed: bool | None = None

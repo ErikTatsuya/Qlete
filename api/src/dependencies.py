@@ -1,36 +1,24 @@
 from hmac import compare_digest
 
-from fastapi import Depends, HTTPException, Request, status
-from fastapi.security import HTTPBasic, HTTPBasicCredentials
+from fastapi import HTTPException, Request, status
 
+from src.core.admin_tokens import decode_admin_token
 from src.core.config import ADMIN_PASSWORD, ADMIN_USER
 
 
-security = HTTPBasic(auto_error=False)
-
-
-async def require_admin(
-    request: Request,
-    credentials: HTTPBasicCredentials | None = Depends(security),
-) -> str:
-    cookie_username = request.cookies.get("admin_user")
-    if cookie_username and compare_digest(cookie_username, ADMIN_USER or ""):
-        return cookie_username
-
+async def require_admin(request: Request) -> str:
     if not ADMIN_USER or not ADMIN_PASSWORD:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Credenciais de administrador não configuradas.",
         )
 
-    if credentials is not None:
-        username_ok = compare_digest(credentials.username, ADMIN_USER)
-        password_ok = compare_digest(credentials.password, ADMIN_PASSWORD)
-        if username_ok and password_ok:
-            return credentials.username
+    token = request.cookies.get("admin_token")
+    username = decode_admin_token(token) if token else None
+    if username and compare_digest(username, ADMIN_USER):
+        return username
 
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Usuário ou senha incorretos.",
-        headers={"WWW-Authenticate": "Basic"},
+        detail="Sem sessão ativa.",
     )

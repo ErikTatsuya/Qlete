@@ -3,8 +3,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.database import get_db
 from src.dependencies import require_admin
-from src.schemas import AnswerResult, AnswerSubmission, QuizCreate, QuizRead
-from src.services.quizzes import check_answer, create_quiz, list_quizzes
+from src.schemas import AnswerResult, AnswerSubmission, QuizAdminRead, QuizCreate, QuizRead
+from src.services.quizzes import (
+    check_answer,
+    create_quiz,
+    delete_quiz,
+    get_admin_quiz,
+    list_quizzes,
+    update_quiz,
+)
 
 
 router = APIRouter(prefix="/api/quizzes", tags=["quizzes"])
@@ -22,6 +29,41 @@ async def post_quiz(
     _: str = Depends(require_admin),
 ):
     return await create_quiz(db, payload)
+
+
+@router.get("/{quiz_id}/admin", response_model=QuizAdminRead)
+async def get_quiz_admin_details(
+    quiz_id: int,
+    db: AsyncSession = Depends(get_db),
+    _: str = Depends(require_admin),
+):
+    quiz = await get_admin_quiz(db, quiz_id)
+    if quiz is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Quiz não encontrado.")
+    return quiz
+
+
+@router.put("/{quiz_id}", response_model=QuizRead)
+async def put_quiz(
+    quiz_id: int,
+    payload: QuizCreate,
+    db: AsyncSession = Depends(get_db),
+    _: str = Depends(require_admin),
+):
+    quiz = await update_quiz(db, quiz_id, payload)
+    if quiz is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Quiz não encontrado.")
+    return quiz
+
+
+@router.delete("/{quiz_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def remove_quiz(
+    quiz_id: int,
+    db: AsyncSession = Depends(get_db),
+    _: str = Depends(require_admin),
+):
+    if not await delete_quiz(db, quiz_id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Quiz não encontrado.")
 
 
 @router.post("/{quiz_id}/questions/{question_id}/answer", response_model=AnswerResult)

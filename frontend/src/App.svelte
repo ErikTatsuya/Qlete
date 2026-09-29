@@ -1,20 +1,19 @@
 <script>
   import { onMount } from 'svelte';
 
-  const apiUrl = (
-    import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://127.0.0.1:8000' : '')
-  ).replace(/\/+$/, '');
+  const apiUrl = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '');
   const emptyQuestion = () => ({ text: '', alternatives: ['', '', '', ''], correct_alternative: 1 });
 
   let quizzes = $state([]);
   let loading = $state(true);
   let saving = $state(false);
   let formOpen = $state(false);
+  let editingQuizId = $state(null);
+  let loadingQuizId = $state(null);
+  let deletingQuizId = $state(null);
   let error = $state('');
   let title = $state('');
   let description = $state('');
-  let adminUser = $state('');
-  let adminPassword = $state('');
   let adminSession = $state(null);
   let adminTasks = $state([]);
   let adminTaskTitle = $state('');
@@ -57,32 +56,6 @@
     }
   }
 
-  async function loginAdmin(event) {
-    event.preventDefault();
-    error = '';
-
-    try {
-      const response = await fetch(`${apiUrl}/admin/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ username: adminUser, password: adminPassword }),
-      });
-
-      if (!response.ok) {
-        const payload = await response.json().catch(() => ({}));
-        throw new Error(payload.detail || 'Usuário ou senha do admin incorretos.');
-      }
-
-      adminSession = await response.json();
-      adminUser = '';
-      adminPassword = '';
-      await loadAdminTasks();
-    } catch (cause) {
-      error = cause instanceof Error ? cause.message : 'Não foi possível entrar no painel admin.';
-    }
-  }
-
   async function logoutAdmin() {
     try {
       await fetch(`${apiUrl}/admin/logout`, {
@@ -92,6 +65,8 @@
     } finally {
       adminSession = null;
       adminTasks = [];
+      formOpen = false;
+      resetForm();
       error = '';
     }
   }
@@ -174,30 +149,93 @@
   function resetForm() {
     title = '';
     description = '';
-    adminUser = '';
-    adminPassword = '';
     questions = [emptyQuestion()];
+    editingQuizId = null;
+  }
+
+  function toggleQuizForm() {
+    if (formOpen) resetForm();
+    formOpen = !formOpen;
+    error = '';
+  }
+
+  async function editQuiz(quiz) {
+    error = '';
+    loadingQuizId = quiz.id;
+    try {
+      const response = await fetch(`${apiUrl}/api/quizzes/${quiz.id}/admin`, {
+        credentials: 'include',
+      });
+      if (response.status === 401) throw new Error('Sua sessão expirou. Entre novamente para editar.');
+      if (!response.ok) throw new Error('Não foi possível carregar este quiz para edição.');
+
+      const editableQuiz = await response.json();
+      editingQuizId = editableQuiz.id;
+      title = editableQuiz.title;
+      description = editableQuiz.description || '';
+      questions = editableQuiz.questions.map((question) => ({
+        text: question.text,
+        alternatives: question.alternatives,
+        correct_alternative: question.correct_alternative,
+      }));
+      formOpen = true;
+    } catch (cause) {
+      error = cause instanceof Error ? cause.message : 'Não foi possível editar o quiz.';
+    } finally {
+      loadingQuizId = null;
+    }
+  }
+
+  async function deleteQuiz(quiz) {
+    if (!window.confirm(`Excluir "${quiz.title}"? Essa ação não pode ser desfeita.`)) return;
+
+    error = '';
+    deletingQuizId = quiz.id;
+    try {
+      const response = await fetch(`${apiUrl}/api/quizzes/${quiz.id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (response.status === 401) throw new Error('Sua sessão expirou. Entre novamente para excluir.');
+      if (!response.ok) throw new Error('Não foi possível excluir o quiz.');
+
+      quizzes = quizzes.filter((item) => item.id !== quiz.id);
+      answerResults = Object.fromEntries(
+        Object.entries(answerResults).filter(([key]) => !key.startsWith(`${quiz.id}:`)),
+      );
+      if (editingQuizId === quiz.id) {
+        resetForm();
+        formOpen = false;
+      }
+    } catch (cause) {
+      error = cause instanceof Error ? cause.message : 'Não foi possível excluir o quiz.';
+    } finally {
+      deletingQuizId = null;
+    }
   }
 
   async function submitQuiz(event) {
     event.preventDefault();
     error = '';
     saving = true;
+    const wasEditing = editingQuizId !== null;
     try {
-      const response = await fetch(`${apiUrl}/api/quizzes`, {
-        method: 'POST',
+      const response = await fetch(`${apiUrl}/api/quizzes${wasEditing ? `/${editingQuizId}` : ''}`, {
+        method: wasEditing ? 'PUT' : 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Basic ${btoa(`${adminUser}:${adminPassword}`)}`,
         },
+        credentials: 'include',
         body: JSON.stringify({ title, description: description || null, questions }),
       });
-      if (response.status === 401) throw new Error('Usuário ou senha de administrador incorretos.');
+      if (response.status === 401) throw new Error('Sua sessão expirou. Entre novamente para publicar.');
       if (response.status === 503) throw new Error('Configure ADMIN_USER e ADMIN_PASSWORD no .env da API.');
       if (response.status === 422) throw new Error('Revise o formulário: cada pergunta precisa de quatro alternativas.');
-      if (!response.ok) throw new Error('Não foi possível salvar o quiz. Tente novamente.');
-      const created = await response.json();
-      quizzes = [created, ...quizzes];
+      if (!response.ok) throw new Error(`Não foi possível ${wasEditing ? 'atualizar' : 'salvar'} o quiz. Tente novamente.`);
+      const savedQuiz = await response.json();
+      quizzes = wasEditing
+        ? quizzes.map((quiz) => quiz.id === savedQuiz.id ? savedQuiz : quiz)
+        : [savedQuiz, ...quizzes];
       resetForm();
       formOpen = false;
     } catch (cause) {
@@ -215,23 +253,23 @@
 <div class="page">
   <main class="workspace">
     <header class="toolbar">
-      <button class="add-button" onclick={() => { formOpen = !formOpen; error = ''; }}>
-        <span aria-hidden="true">{formOpen ? '×' : '+'}</span>
-        {formOpen ? 'Fechar' : 'Adicionar quiz'}
-      </button>
-
-      {#if adminSession}
+      <a class="brand" href="/" aria-label="Qlete, biblioteca de quizzes">
+        <strong>Qlete</strong><span>Biblioteca de quizzes</span>
+      </a>
+      <div class="toolbar-actions">
+        {#if adminSession}
+          <button class="add-button" onclick={toggleQuizForm}>
+            <span aria-hidden="true">{formOpen ? '×' : '+'}</span>
+            {formOpen ? 'Fechar' : 'Adicionar quiz'}
+          </button>
         <div class="admin-badge">
           <span>Admin: {adminSession.username}</span>
           <button class="text-action" type="button" onclick={logoutAdmin}>Sair</button>
         </div>
-      {:else}
-        <form class="admin-login-inline" onsubmit={loginAdmin}>
-          <input bind:value={adminUser} placeholder="Admin" aria-label="Usuário admin" required />
-          <input bind:value={adminPassword} type="password" placeholder="Senha" aria-label="Senha do admin" required />
-          <button class="text-action" type="submit">Entrar</button>
-        </form>
-      {/if}
+        {:else}
+          <a class="login-link" href="/login">Entrar <span aria-hidden="true">↗</span></a>
+        {/if}
+      </div>
     </header>
 
     {#if adminSession}
@@ -263,7 +301,7 @@
       <section class="composer" aria-labelledby="composer-title">
         <div class="composer-heading">
           <div>
-            <h2 id="composer-title">Criar quiz</h2>
+            <h2 id="composer-title">{editingQuizId ? 'Editar quiz' : 'Criar quiz'}</h2>
           </div>
           <span class="question-count">{questions.length.toString().padStart(2, '0')} / 10</span>
         </div>
@@ -276,17 +314,6 @@
             <label class="field">
               <span>Descrição <small>opcional</small></span>
               <input bind:value={description} placeholder="Uma linha sobre este quiz" />
-            </label>
-          </div>
-
-          <div class="credentials-row">
-            <label class="field">
-              <span>Usuário admin</span>
-              <input bind:value={adminUser} autocomplete="username" placeholder="Usuário" required />
-            </label>
-            <label class="field">
-              <span>Senha admin</span>
-              <input bind:value={adminPassword} type="password" autocomplete="current-password" placeholder="Senha" required />
             </label>
           </div>
 
@@ -334,7 +361,7 @@
 
           <div class="form-footer">
             <button class="text-action" type="button" onclick={addQuestion} disabled={questions.length >= 10}>+ Adicionar pergunta</button>
-            <button class="submit-button" type="submit" disabled={saving}>{saving ? 'Salvando...' : 'Publicar quiz'} <span aria-hidden="true">↗</span></button>
+            <button class="submit-button" type="submit" disabled={saving}>{saving ? 'Salvando...' : editingQuizId ? 'Salvar alterações' : 'Publicar quiz'} <span aria-hidden="true">↗</span></button>
           </div>
         </form>
       </section>
@@ -366,6 +393,19 @@
                 <span class="quiz-meta"><span>{quiz.questions.length} {quiz.questions.length === 1 ? 'pergunta' : 'perguntas'}</span><time>{formatDate(quiz.created_at)}</time></span>
                 <span class="expand-mark" aria-hidden="true">+</span>
               </summary>
+              {#if adminSession}
+                <div class="quiz-admin-actions" aria-label="Ações do quiz">
+                  <span>Gerenciar quiz</span>
+                  <div>
+                    <button class="text-action" type="button" onclick={() => editQuiz(quiz)} disabled={loadingQuizId === quiz.id}>
+                      {loadingQuizId === quiz.id ? 'Carregando...' : 'Editar'}
+                    </button>
+                    <button class="delete-action" type="button" onclick={() => deleteQuiz(quiz)} disabled={deletingQuizId === quiz.id}>
+                      {deletingQuizId === quiz.id ? 'Excluindo...' : 'Excluir'}
+                    </button>
+                  </div>
+                </div>
+              {/if}
               <div class="quiz-questions">
                 {#each quiz.questions as question (question.id)}
                   {@const answerKey = `${quiz.id}:${question.id}`}
