@@ -1,0 +1,28 @@
+api v0.1.0
+├── fastapi v0.141.1
+│   ├── annotated-doc v0.0.5
+│   ├── pydantic v2.13.5
+│   │   ├── annotated-types v0.8.0
+│   │   ├── pydantic-core v2.46.5
+│   │   │   └── typing-extensions v4.16.0
+│   │   ├── typing-extensions v4.16.0
+│   │   └── typing-inspection v0.4.4
+│   │       └── typing-extensions v4.16.0
+│   ├── starlette v1.7.0
+│   │   └── anyio v4.15.1
+│   │       ├── idna v3.20
+│   │       └── typing-extensions v4.16.0
+│   ├── typing-extensions v4.16.0
+│   └── typing-inspection v0.4.4 (*)
+├── psycopg[binary] v3.3.6
+│   ├── tzdata v2026.4
+│   └── psycopg-binary v3.3.6 (extra: binary)
+├── pyjwt v2.15.1
+├── python-dotenv v1.2.3
+├── sqlalchemy[asyncio] v2.1.1
+│   ├── typing-extensions v4.16.0
+│   └── greenlet v3.5.6 (extra: asyncio)
+└── uvicorn v0.54.0
+    ├── click v8.5.0
+    └── h11 v0.16.0
+(*) Package tree already displayed
