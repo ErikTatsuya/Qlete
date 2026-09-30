@@ -6,7 +6,6 @@ from fastapi import FastAPI
 
 from src.core.database import close_db, init_db
 from src.core.middleware import configure_middleware
-from src.routers.admin import router as admin_router
 from src.routers.admin_auth import router as admin_auth_router
 from src.routers.health import router as health_router
 from src.routers.quizzes import router as quizzes_router
@@ -26,7 +25,6 @@ configure_middleware(app)
 app.include_router(health_router)
 app.include_router(quizzes_router)
 app.include_router(admin_auth_router)
-app.include_router(admin_router)
 
 
 @app.get("/", include_in_schema=False)

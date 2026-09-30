@@ -40,18 +40,3 @@ class Question(Base):
     alternative_4: Mapped[str] = mapped_column(Text, nullable=False)
     correct_alternative: Mapped[int] = mapped_column(nullable=False, default=1)
     quiz: Mapped[Quiz] = relationship(back_populates="questions")
-
-
-class Task(Base):
-    __tablename__ = "tasks"
-
-    id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    title: Mapped[str] = mapped_column(String(200), nullable=False)
-    description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    completed: Mapped[bool] = mapped_column(default=False, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
-    )
