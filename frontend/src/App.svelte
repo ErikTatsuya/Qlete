@@ -15,10 +15,6 @@
   let title = $state('');
   let description = $state('');
   let adminSession = $state(null);
-  let adminTasks = $state([]);
-  let adminTaskTitle = $state('');
-  let adminTaskDescription = $state('');
-  let adminTaskSaving = $state(false);
   let questions = $state([emptyQuestion()]);
   let answerResults = $state({});
   let answering = $state({});
@@ -50,7 +46,6 @@
         return;
       }
       adminSession = await response.json();
-      await loadAdminTasks();
     } catch {
       adminSession = null;
     }
@@ -64,57 +59,9 @@
       });
     } finally {
       adminSession = null;
-      adminTasks = [];
       formOpen = false;
       resetForm();
       error = '';
-    }
-  }
-
-  async function loadAdminTasks() {
-    if (!adminSession) return;
-
-    try {
-      const response = await fetch(`${apiUrl}/admin/tasks`, {
-        method: 'GET',
-        credentials: 'include',
-      });
-      if (!response.ok) throw new Error('Não foi possível carregar as tarefas do admin.');
-      adminTasks = await response.json();
-    } catch (cause) {
-      error = cause instanceof Error ? cause.message : 'Erro ao carregar tarefas do admin.';
-    }
-  }
-
-  async function createAdminTask(event) {
-    event.preventDefault();
-    if (!adminSession || !adminTaskTitle.trim()) return;
-
-    adminTaskSaving = true;
-    try {
-      const response = await fetch(`${apiUrl}/admin/tasks`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          title: adminTaskTitle.trim(),
-          description: adminTaskDescription.trim() || null,
-          completed: false,
-        }),
-      });
-
-      if (!response.ok) {
-        const payload = await response.json().catch(() => ({}));
-        throw new Error(payload.detail || 'Não foi possível criar a tarefa.');
-      }
-
-      adminTaskTitle = '';
-      adminTaskDescription = '';
-      await loadAdminTasks();
-    } catch (cause) {
-      error = cause instanceof Error ? cause.message : 'Não foi possível criar a tarefa.';
-    } finally {
-      adminTaskSaving = false;
     }
   }
 
@@ -271,31 +218,6 @@
         {/if}
       </div>
     </header>
-
-    {#if adminSession}
-      <section class="admin-panel">
-        <h2>Painel admin</h2>
-        <form class="admin-task-form" onsubmit={createAdminTask}>
-          <input bind:value={adminTaskTitle} placeholder="Título da tarefa" required />
-          <input bind:value={adminTaskDescription} placeholder="Descrição (opcional)" />
-          <button class="submit-button" type="submit" disabled={adminTaskSaving}>{adminTaskSaving ? 'Salvando...' : 'Criar tarefa'}</button>
-        </form>
-
-        <div class="admin-task-list">
-          {#if adminTasks.length === 0}
-            <p>Nenhuma tarefa cadastrada.</p>
-          {:else}
-            {#each adminTasks as task (task.id)}
-              <div class="admin-task-item">
-                <strong>{task.title}</strong>
-                {#if task.description}<small>{task.description}</small>{/if}
-                <span class:done={task.completed}>{task.completed ? 'Concluída' : 'Pendente'}</span>
-              </div>
-            {/each}
-          {/if}
-        </div>
-      </section>
-    {/if}
 
     {#if formOpen}
       <section class="composer" aria-labelledby="composer-title">

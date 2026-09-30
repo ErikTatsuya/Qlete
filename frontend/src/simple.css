@@ -97,17 +97,6 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 2px 
 .text-action:disabled { color: #94a3b8; cursor: not-allowed; }
 .submit-button { min-height: 40px; }
 .submit-button:disabled { opacity: .6; cursor: wait; }
-.admin-panel { margin: -18px 0 32px; padding: 18px; border: 1px solid var(--line); border-radius: 6px; background: #fff; }
-.admin-panel h2 { margin: 0 0 14px; color: var(--ink); font-size: 16px; }
-.admin-task-form { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; gap: 10px; }
-.admin-task-form input { min-width: 0; height: 40px; padding: 0 11px; border: 1px solid var(--line); background: #fbfcfe; font-size: 13px; }
-.admin-task-list { display: grid; gap: 8px; margin-top: 14px; }
-.admin-task-list > p { margin: 0; color: var(--muted); font-size: 13px; }
-.admin-task-item { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 3px 12px; padding: 10px 0; border-top: 1px solid #edf1f6; font-size: 12px; }
-.admin-task-item strong { color: var(--ink); }
-.admin-task-item small { color: var(--muted); overflow-wrap: anywhere; }
-.admin-task-item > span { grid-column: 2; grid-row: 1 / span 2; align-self: center; color: var(--muted); font-size: 11px; }
-.admin-task-item > span.done { color: #28734a; }
 .login-page { min-height: 100vh; padding: 34px max(20px, calc((100% - 880px) / 2)); background: linear-gradient(180deg, #edf4fc 0, #f7f9fc 300px, #f7f9fc 100%); }
 .login-header { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
 .login-content { width: min(100%, 420px); margin: clamp(58px, 13vh, 120px) auto 0; padding: 26px; border: 1px solid var(--line); border-top: 3px solid var(--blue); border-radius: 6px; background: #fff; box-shadow: 0 8px 28px #1e3e6412; }
@@ -130,7 +119,6 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 2px 
   .expand-mark { grid-column: 2; grid-row: 1 / span 2; }
   .quiz-questions { grid-template-columns: 1fr; }
   .form-grid { grid-template-columns: 1fr; }
-  .admin-task-form { grid-template-columns: 1fr; }
   .alternatives-grid { grid-template-columns: 1fr; }
   .composer { padding: 17px 14px; }
   .form-footer { align-items: stretch; flex-direction: column; }
